@@ -1,0 +1,481 @@
+﻿# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar 13 13:58:40 2021
+
+
+@author: nick_harris
+"""
+
+
+## MIDTERM PYTHON CODE
+
+
+
+
+
+
+import sklearn
+import numpy as np
+from pandas import read_csv
+from sklearn.linear_model import LinearRegression
+from numpy.random import seed
+from sklearn.model_selection import cross_val_score
+from itertools import combinations
+import statsmodels.api as sm
+from statsmodels.api import add_constant
+from sklearn import linear_model
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import cross_validate
+from sklearn import preprocessing
+        
+#%%#
+
+
+
+
+seed(1234)
+# data file need to be renamed
+data = read_csv("C:/Users/nickc/OneDrive/Documents/ucf.classes/spring2021/ba/midterm/database/sales_nick.csv")
+data = data.sample((len(data)))
+
+
+y = data['Price']
+
+
+np.mean(y)
+
+
+# need to make combos of variables
+
+
+x_combos = []
+for n in range(1,8):
+ #   combos = combinations(['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'Age', 'Pool_Val', 'CBD_DIST'], n)
+    combos = combinations(['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'Age', 'Pool_Val', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate'], n)
+    x_combos.extend(combos)
+    
+
+
+#%%#
+
+
+# using cross validation
+
+
+mse = {}
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    model = LinearRegression()
+    cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    mse[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(mse.values()))
+print("min average test mse: ", min_mse.round(3))
+for possibles, i in mse.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+     
+        
+# quickly find train/r2     
+
+
+x = data[['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'CBD_DIST', 'Y_Coordinate']]
+
+
+#%%#     
+
+
+# log linear
+
+
+# ln(y) = x implies y = exp(x)
+
+
+model_log = {}
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    x = preprocessing.scale(x)
+    x = np.exp(x)
+    model = LinearRegression()
+    with ignore_warnings(category=ConvergenceWarning):
+        cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    model_log[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(model_log.values()))
+print("min average test mse: ", min_mse.round(3))
+for possibles, i in model_log.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+        
+x = data[['Sale_Year', 'Pool_Val', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate']]
+
+
+
+
+
+
+y_log = np.log(y)
+
+
+model_log = {}
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    model = LinearRegression()
+    with ignore_warnings(category=ConvergenceWarning):
+        cv_scores = cross_val_score(model, x, y_log, cv=10, scoring = 'neg_mean_squared_error')
+    model_log[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(model_log.values()))
+print("min average test mse: ", min_mse.round(3))
+for possibles, i in model_log.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+
+
+x = data[['Sale_Year', 'Home_Size', 'Parcel_Size', 'Age', 'Pool_Val', 'CBD_DIST', 'Y_Coordinate']]
+        
+#%%#        
+
+
+# using poly cross vals
+
+
+
+
+mse_poly = {}
+        
+poly_number = 2
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    poly = PolynomialFeatures(poly_number)
+    poly_x = poly.fit_transform(x)
+    model = LinearRegression()
+    cv_scores = cross_val_score(model, poly_x, y, cv=10, scoring = 'neg_mean_squared_error')
+    mse_poly[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(mse_poly.values()))
+print("min average test mse_poly: ", min_mse.round(3))
+for possibles, i in mse_poly.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+    
+
+
+# using the best combo of variables to more quickly find train and r2
+
+
+# poly 4 
+x =  data[['Home_Size', 'Pool_Val']]
+
+
+# poly 3
+x = data[['Sale_Year', 'Home_Size', 'Beds', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate']]
+
+
+# poly 2    
+x = data[['Sale_Year', 'Home_Size', 'Age', 'Pool_Val', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate']]
+
+
+poly = PolynomialFeatures(poly_number)
+poly_x = poly.fit_transform(x)
+model = LinearRegression()
+
+
+
+
+#%%#
+
+
+# lasso
+
+
+
+
+mse_lasso = {}
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    model = linear_model.Lasso(0.0000001)
+    cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    mse_lasso[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(mse_lasso.values()))
+print("min average test mse: ", min_mse.round(3))
+for possibles, i in mse_lasso.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+
+
+      
+# quickly find train/r2     
+        
+x = data[['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'CBD_DIST', 'Y_Coordinate']]
+
+
+#%%#
+        
+# ridge
+
+
+
+
+from sklearn import linear_model
+
+
+mse_ridge = {}
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    model = linear_model.Ridge(1)
+    cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    mse_ridge[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(mse_ridge.values()))
+print("min average test mse: ", min_mse.round(3))
+for possibles, i in mse_ridge.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+
+
+         
+#optimal data
+    
+x = data[['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'CBD_DIST', 'Y_Coordinate']]
+
+
+#%%#
+
+
+#lasso on polynomial models
+
+
+from sklearn.utils.testing import ignore_warnings
+from sklearn.exceptions import ConvergenceWarning
+
+
+mse_poly = {}
+        
+poly_number = 2
+
+
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    poly = PolynomialFeatures(poly_number)
+    poly_x = poly.fit_transform(x)
+    model = linear_model.Lasso(1)
+    with ignore_warnings(category=ConvergenceWarning):
+        cv_scores = cross_val_score(model, poly_x, y, cv=10, scoring = 'neg_mean_squared_error')
+    mse_poly[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(mse_poly.values()))
+print("min average test mse_poly: ", min_mse.round(3))
+for possibles, i in mse_poly.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+
+
+x = data[['Sale_Year', 'Home_Size', 'Age', 'Pool_Val', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate']]
+
+
+#%%#
+
+
+#ridge on log linear models
+
+
+from sklearn.utils.testing import ignore_warnings
+from sklearn.exceptions import ConvergenceWarning
+
+
+mse_log = {}
+    
+for n in range(0, len(x_combos)):
+    combo_list = list(x_combos[n])
+    x = data[combo_list]
+    x = preprocessing.scale(x)
+    x = np.exp(x)
+    model = linear_model.Ridge(0.000001)
+    with ignore_warnings(category=ConvergenceWarning):
+        cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    mse_log[str(combo_list)] = np.mean(cv_scores)
+
+
+
+
+min_mse = abs(max(mse_log.values()))
+print("min average test mse_poly: ", min_mse.round(3))
+for possibles, i in mse_log.items():
+    if i == -min_mse:
+        print("the combination of variables:", possibles)
+
+
+#%%#
+
+
+
+
+# random forest
+
+
+
+
+x = data[['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'Age', 'Pool_Val', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate']]
+
+
+model = RandomForestRegressor(max_depth=10, n_estimators=128, random_state=1234)
+
+
+cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+
+
+print(round(np.mean(cv_scores),2))
+
+
+
+
+results = model.fit(x,y)
+mse = sum((y - results.predict(x))**2)/len(y)
+print("re-estimated mse (in sample): ", mse)
+
+
+y_mean = np.mean(y) 
+sst = np.sum((y - y_mean)**2)
+ssr = np.sum((y-results.predict(x))**2)
+
+
+r2 = 1 - ssr/sst
+print("re-estimated r2 in sample: ", r2)
+
+
+#%%#
+
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import cross_validate
+x = data[['Sale_Year', 'Home_Size', 'Parcel_Size', 'Beds', 'Age', 'Pool_Val', 'CBD_DIST', 'X_Coordinate', 'Y_Coordinate']]
+
+
+
+
+def forest(depth, estimators):
+    model = RandomForestRegressor(max_depth=depth, n_estimators=200, random_state=1234)
+    cv_scores = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    cv_scores_train = cross_validate(model, x, y, cv=10, scoring = 'neg_mean_squared_error', return_train_score=True)
+    print(round(np.mean(-cv_scores),2),round(np.mean(-cv_scores_train['train_score']),2), model.max_depth)
+forest(10, 128)
+
+
+for p in range(1,11):
+    forest(p, 128)
+
+
+
+
+model = RandomForestRegressor(max_depth=10, n_estimators=128, random_state=1234)
+results = model.fit(x,y)
+estimator = results.estimators_[5]
+from sklearn.tree import export_graphviz
+export_graphviz(estimator, out_file="tree.dot")
+
+
+
+
+
+
+
+
+#%%#
+
+
+#finding values from optimal sets quickly
+#run x optimal
+
+
+#if needed
+x = poly_x
+y = y_log
+
+
+with ignore_warnings(category=ConvergenceWarning):
+    test_mse = cross_val_score(model, x, y, cv=10, scoring = 'neg_mean_squared_error')
+    avg_test_mse = np.mean(-test_mse) 
+
+
+    train_mse = cross_validate(model, x, y, cv=10, scoring = 'neg_mean_squared_error', return_train_score=True)
+    avg_train_mse = np.mean(-train_mse['train_score'])
+
+
+    test_r2 = cross_val_score(model, x, y, cv=10, scoring = 'r2')
+    avg_test_r2 = np.mean(test_r2) 
+
+
+    train_r2 = cross_validate(model, x, y, cv=10, scoring = 'r2', return_train_score=True)
+    avg_train_r2 = np.mean(train_r2['train_score'])    
+
+
+
+
+
+
+#%%#
+
+
+# FOR VALIDATE
+
+
+
+
+data_validate = read.csv("")
+
+
+y_validate = data_validate['Price']
+
+
+x_validate = data_validate[[]]
+
+
+
+
+results = model.fit(x_validate,y_validate)
+
+
+mse_validate = sum((y_validate - results.predict(x_validate))**2)/len(y)
